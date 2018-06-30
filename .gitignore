@@ -113,6 +113,7 @@ fabric.properties
 .idea/sonarlint
 
 ### CMake ###
+cmake/
 CMakeCache.txt
 CMakeFiles
 CMakeScripts
