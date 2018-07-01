@@ -65,6 +65,30 @@ int main() {
     routers.Create(12);
 
     /* -------------------------------------------------------------------------------------------------------------- */
+    /* Instalacao da da internet stack */
+    InternetStackHelper stack;
+
+    stack.Install(applA);       // Dispositivos da Rede A
+    stack.Install(wifiA);
+    stack.Install(subNetA1);
+    stack.Install(subNetA2);
+    stack.Install(subNetA3);
+    stack.Install(subNetA4);
+    stack.Install(subNetA5);
+    stack.Install(switchA);
+
+    stack.Install(applB);       // Dispositivos da Rede B
+    stack.Install(wifiB);
+    stack.Install(subNetB1);
+    stack.Install(subNetB2);
+    stack.Install(subNetB3);
+    stack.Install(subNetB4);
+    stack.Install(subNetB5);
+    stack.Install(switchB);
+
+    stack.Install(routers);     // Roteadores
+
+    /* -------------------------------------------------------------------------------------------------------------- */
     /* Configuracao dos enlaces */
     PointToPointHelper etherCat5;   // Criacao dos enlaces
     PointToPointHelper etherCat6;   // Utilizam cabos de par trancado (Ethernet, categorias 5e, 6 e 6A)
