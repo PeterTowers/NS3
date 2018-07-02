@@ -4,13 +4,19 @@
  * Autores: Pedro Torres, Thales Grilo e Icaro Rezende.
 */
 
-// Modulos utilizados
+/* Modulos utilizados */
 #include <ns3/core-module.h>
 #include <ns3/network-module.h>
 #include <ns3/internet-module.h>
 #include <ns3/point-to-point-module.h>
 #include <ns3/applications-module.h>
 #include <ns3/simulator.h>
+#include "ns3/olsr-helper.h"
+
+#include <ns3/netanim-module.h> // Modulos para a animacao (netanim)
+#include <ns3/bs-net-device.h>
+#include <ns3/csma-module.h>
+#include <ns3/uan-module.h>
 
 // Declaracao de namespace
 using namespace ns3;
@@ -18,6 +24,8 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE("RedeLab4");    // Nome do log que sera gerado
 
 int main() {
+    std::string outputFolder = "output/";
+
     /* Logs utilizados */
     //LogComponentEnable("UdpEchoClientApplication", LOG_LEVEL_INFO);
     //LogComponentEnable("UdpEchoServerApplication", LOG_LEVEL_INFO);
@@ -66,9 +74,22 @@ int main() {
     routers.Create(12);
 
     /* -------------------------------------------------------------------------------------------------------------- */
+    /* Configuracao dos protocolos de roteamento */
+    NS_LOG_INFO("Instalacao dos protocolos de roteamento");
+    Ipv4StaticRoutingHelper staticRouting;
+    OlsrHelper olsrRouting;
+
+    Ipv4ListRoutingHelper routeHelper;
+    routeHelper.Add(staticRouting, 0);
+    routeHelper.Add(olsrRouting, 12);
+
+    /* -------------------------------------------------------------------------------------------------------------- */
     /* Instalacao da pilha de rede (internet stack) */
     NS_LOG_INFO("Instalacao da internet stack");
     InternetStackHelper stack;
+
+    stack.SetRoutingHelper(routeHelper);    // Configura a pilha para suportar os protocolos de roteamento
+
 
     stack.Install(applA);       // Dispositivos da Rede A
     stack.Install(wifiA);
@@ -89,6 +110,8 @@ int main() {
     stack.Install(switchB);
 
     stack.Install(routers);     // Roteadores
+
+    stack.EnablePcapIpv4All(outputFolder+"pcap");   // Output do Ipv4 para pcap (Wireshark)
 
     /* -------------------------------------------------------------------------------------------------------------- */
     /* Configuracao dos enlaces */
@@ -143,12 +166,17 @@ int main() {
     wanRouters.Add(oc192.Install(routers.Get(7), routers.Get(8)));  // Cabeamento do roteador 7 -> 8
     wanRouters.Add(oc48.Install(routers.Get(7), routers.Get(10)));  // Cabeamento do roteador 7 -> 10
 
+    oc12.EnablePcapAll(outputFolder+"pcap", true);  // Output dos enlaces de fibra otica para pcap
+    oc48.EnablePcapAll(outputFolder+"pcap", true);
+    oc192.EnablePcapAll(outputFolder+"pcap", true);
+
     NS_LOG_INFO("Processo enderecamento dos roteadores de borda e da WAN.");
     Ipv4AddressHelper address;                          // Criacao de um auxiliador de enderecamento
     Ipv4InterfaceContainer interfaces;                  // Criacao do container de interfaces IPv4
 
     address.SetBase("193.1.17.0", "255.255.248");   // Endereco base e mascara de sub-rede dos roteadores (WAN e borda)
     interfaces = address.Assign(wanRouters);        // Processo de enderecamento dos roteadores (WAN e borda)
+    address.NewNetwork();                           // Reseta o parametro address para que possa ser utilizado novamente
 
     NS_LOG_INFO("Laco de cabeamento dos dispositivos da Rede A.");
     NetDeviceContainer subNetA, aux;    // Container para a Rede A e um auxiliar para a insercao dos dispositivos
@@ -182,6 +210,7 @@ int main() {
 
     address.SetBase("193.1.17.32", "255.255.255.0");    // Endereco base e mascara de sub-rede da Rede A
     interfaces = address.Assign(subNetA);               // Processo de enderecamento da Rede A
+    address.NewNetwork();                           // Reseta o parametro address para que possa ser utilizado novamente
 
     NS_LOG_INFO("Laco de cabeamento da Rede B.");
     NetDeviceContainer subNetB;         // Container para os dispositivos da Rede B
@@ -209,12 +238,27 @@ int main() {
     NS_LOG_INFO("Enderecamento da Rede B.");
     address.SetBase("193.1.28.32", "255.255.255.0");    // Definicao do endereco base e mascara de sub-rede da Rede B
     interfaces = address.Assign(subNetB);               // Processo de enderecamento da Rede B
+    address.NewNetwork();                           // Reseta o parametro address para que possa ser utilizado novamente
 
 
 
+    etherCat5.EnablePcapAll(outputFolder+"pcap", true);     // Output dos enlaces Ethernet para pcap
+    etherCat6.EnablePcapAll(outputFolder+"pcap", true);
+    etherCat6A.EnablePcapAll(outputFolder+"pcap", true);
 
+    Ipv4GlobalRoutingHelper::PopulateRoutingTables ();  // Popula as tabelas de roteamento
 
+    /* -------------------------------------------------------------------------------------------------------------- */
+    /* Exportacao dos dados da simulacao para netanim */
+    BaseStationNetDevice b;
+    SubscriberStationNetDevice s;
+    CsmaNetDevice c;
+    UanNetDevice u;
 
+    AnimationInterface anim(outputFolder+"anim2.xml");
+    anim.SetMaxPktsPerTraceFile(0xFFFFFFFF);
+    anim.EnablePacketMetadata(true);
+    anim.EnableIpv4RouteTracking (outputFolder+"routingtable-wireless.xml", Seconds (0), Seconds (9), Seconds (0.25));
 
     Simulator::Run();       // Inicio da simulacao
     Simulator::Destroy();   // Fim da simulacao
