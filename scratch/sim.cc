@@ -33,6 +33,7 @@ int main() {
     NodeContainer subNetA4;
     NodeContainer subNetA5;
     NodeContainer switchA;  // Containers para os switches da Rede A
+    
 
     NodeContainer applB;    // Container para os servidores da Rede B
     NodeContainer wifiB;    // Container para os hosts da Rede wireless B
@@ -65,6 +66,25 @@ int main() {
 
     routers.Create(12);
 
+
+    // <@ghalestrilo>
+    std::vector<NodeContainer*> subnetsLANA;
+    subnetsLANA.push_back(&subNetA1); // Containers para os hosts da Rede A
+    subnetsLANA.push_back(&subNetA2);
+    subnetsLANA.push_back(&subNetA3);
+    subnetsLANA.push_back(&subNetA4);
+    subnetsLANA.push_back(&subNetA5);
+    
+    std::vector<NodeContainer*> subnetsLANB;
+    subnetsLANB.push_back(&subNetB1); // Containers para os hosts da Rede A
+    subnetsLANB.push_back(&subNetB2);
+    subnetsLANB.push_back(&subNetB3);
+    subnetsLANB.push_back(&subNetB4);
+    subnetsLANB.push_back(&subNetB5);
+    
+    // </@ghalestrilo>
+
+
     /* -------------------------------------------------------------------------------------------------------------- */
     /* Instalacao da da internet stack */
     NS_LOG_INFO("Instalacao da internet stack");
@@ -72,20 +92,14 @@ int main() {
 
     stack.Install(applA);       // Dispositivos da Rede A
     stack.Install(wifiA);
-    stack.Install(subNetA1);
-    stack.Install(subNetA2);
-    stack.Install(subNetA3);
-    stack.Install(subNetA4);
-    stack.Install(subNetA5);
+    for (auto n : subnetsLANA)
+        stack.Install(*n);
     stack.Install(switchA);
 
     stack.Install(applB);       // Dispositivos da Rede B
     stack.Install(wifiB);
-    stack.Install(subNetB1);
-    stack.Install(subNetB2);
-    stack.Install(subNetB3);
-    stack.Install(subNetB4);
-    stack.Install(subNetB5);
+    for (auto n : subnetsLANB)
+        stack.Install(*n);
     stack.Install(switchB);
 
     stack.Install(routers);     // Roteadores
@@ -147,72 +161,52 @@ int main() {
     Ipv4AddressHelper address;                          // Criacao de um auxiliador de enderecamento
     Ipv4InterfaceContainer interfaces;                  // Criacao do container de interfaces IPv4
 
-    address.SetBase("193.1.17.0", "255.255.248");   // Endereco base e mascara de sub-rede dos roteadores (WAN e borda)
+    address.SetBase("193.1.17.0", "255.255.248.0");   // Endereco base e mascara de sub-rede dos roteadores (WAN e borda)
     interfaces = address.Assign(wanRouters);        // Processo de enderecamento dos roteadores (WAN e borda)
 
-    NS_LOG_INFO("Laco de cabeamento dos dispositivos da Rede A.");
-    NetDeviceContainer subNetA, aux;    // Container para a Rede A e um auxiliar para a insercao dos dispositivos
 
-    for (int i = 0; i < 5; i++) {       // Laco de cabeamento hosts -> switches -> roteador da Rede A
-        for (int j = 0; j < 25; j++) {
-            if (i == 0) {               // "Cabeamento" hosts -> switch da sub-rede 1
-                aux = etherCat6A.Install(subNetA1.Get(j), switchA.Get(i));
-                subNetA.Add(aux.Get(0));
-            }
-            else if (i == 1) {          // "Cabeamento" hosts -> switch da sub-rede 2
-                aux = etherCat6A.Install(subNetA2.Get(j), switchA.Get(i));
-                subNetA.Add(aux.Get(0));
-            }
-            else if (i == 2) {          // "Cabeamento" hosts -> switch da sub-rede 3
-                aux = etherCat6A.Install(subNetA3.Get(j), switchA.Get(i));
-                subNetA.Add(aux.Get(0));
-            }
-            else if (i == 3) {          // "Cabeamento" hosts -> switch da sub-rede 4
-                aux = etherCat6A.Install(subNetA4.Get(j), switchA.Get(i));
-                subNetA.Add(aux.Get(0));
-            }
-            else {                      // "Cabeamento" hosts -> switch da sub-rede 5
-                aux = etherCat6A.Install(subNetA5.Get(j), switchA.Get(i));
-                subNetA.Add(aux.Get(0));
-            }
-        }
-        subNetA.Add(etherCat6A.Install(switchA.Get(i), routers.Get(0)));    // "Cabeamento" switches -> roteador
+
+    // Enderecamento LAN A
+
+    NS_LOG_INFO("Laco de cabeamento dos dispositivos da Rede A.");
+    NetDeviceContainer subNetA;    // Container para a Rede A
+
+    // Laco de cabeamento hosts -> switches -> roteador da Rede A
+    for(int i = 0; i < subnetsLANA.size(); i++){
+        
+        // "Cabeamento" hosts -> switch em cada subrede
+        for(int j = 0; j < 25; j++)
+            subNetA.Add((etherCat6A.Install(subnetsLANA[i]->Get(j), switchA.Get(i))).Get(0));
+        
+        // "Cabeamento" switches -> roteador
+        subNetA.Add(etherCat6A.Install(switchA.Get(i), routers.Get(0)));
     }
     NS_LOG_INFO("Enderecamento da Rede A.");
-
     address.SetBase("193.1.17.32", "255.255.255.0");    // Endereco base e mascara de sub-rede da Rede A
     interfaces = address.Assign(subNetA);               // Processo de enderecamento da Rede A
 
+    
+    
+    
+    // Enderecamento LAN B
+    
     NS_LOG_INFO("Laco de cabeamento da Rede B.");
     NetDeviceContainer subNetB;         // Container para os dispositivos da Rede B
-
-    for (int i = 0; i < 5; i ++) {      // Laco de cabeamento hosts -> switches -> roteador da Rede B
-        for (int j = 0; j < 25; j++) {
-            if (i == 0) {               // "Cabeamento" hosts -> switch da sub-rede 1
-                subNetB.Add(etherCat5.Install(subNetB1.Get(j), switchB.Get(i)));
-            }
-            else if (i == 1) {          // "Cabeamento" hosts -> switch da sub-rede 2
-                subNetB.Add(etherCat5.Install(subNetB2.Get(j), switchB.Get(i)));
-            }
-            else if (i == 2) {          // "Cabeamento" hosts -> switch da sub-rede 3
-                subNetB.Add(etherCat5.Install(subNetB3.Get(j), switchB.Get(i)));
-            }
-            else if (i == 3) {          // "Cabeamento" hosts -> switch da sub-rede 4
-                subNetB.Add(etherCat5.Install(subNetB4.Get(j), switchB.Get(i)));
-            }
-            else {                      // "Cabeamento" hosts -> switch da sub-rede 5
-                subNetB.Add(etherCat5.Install(subNetB5.Get(j), switchB.Get(i)));
-            }
-        }
-        subNetB.Add(etherCat6.Install(switchB.Get(i), routers.Get(11)));    // "Cabeamento" switches -> roteador
+    
+    // Laco de cabeamento hosts -> switches -> roteador da Rede A
+    for(int i = 0; i < subnetsLANB.size(); i++){
+        
+        // "Cabeamento" hosts -> switch em cada subrede
+        for(int j = 0; j < 25; j++)
+            subNetB.Add((etherCat5.Install(subnetsLANB[i]->Get(j), switchB.Get(i))).Get(0));
+        
+        // "Cabeamento" switches -> roteador
+        subNetB.Add(etherCat6.Install(switchB.Get(i), routers.Get(11))); // 11?
     }
+    
     NS_LOG_INFO("Enderecamento da Rede B.");
     address.SetBase("193.1.28.32", "255.255.255.0");    // Definicao do endereco base e mascara de sub-rede da Rede B
     interfaces = address.Assign(subNetB);               // Processo de enderecamento da Rede B
-
-
-
-
 
 
 
