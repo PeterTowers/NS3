@@ -237,8 +237,9 @@ int main() {
     AnimationInterface anim(outputFolder+"anim2.xml");
     anim.SetMaxPktsPerTraceFile(0xFFFFFFFF);
     anim.EnablePacketMetadata(true);
-    anim.EnableIpv4RouteTracking (outputFolder+"routingtable-wireless.xml", Seconds (0), Seconds (9), Seconds (0.25));
+    anim.EnableIpv4RouteTracking (outputFolder+"netanim.xml", Seconds (0), Seconds (9), Seconds (0.25));
 
+    Simulator::Stop(Minutes(1));
     Simulator::Run();       // Inicio da simulacao
     Simulator::Destroy();   // Fim da simulacao
 
