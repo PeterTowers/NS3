@@ -158,7 +158,6 @@ int main() {
     NetDeviceContainer wanRouters;  // Container para os roteadores da WAN e os de borda das redes A e B
 
     wanRouters.Add(oc12.Install(routers.Get(0), routers.Get(1)));   // Roteador de borda Rede A -> Roteador de nucleo 1
-    wanRouters.Add(oc12.Install(routers.Get(9), routers.Get(11)));  // Roteador de borda Rede B -> Roteador de nucleo 11
 
     for (int i = 1; i < 5; i++) {   // Laco para "cabeamento" dos roteadores seguindo os seguintes parametros:
         wanRouters.Add(oc192.Install(routers.Get(2*i - 1), routers.Get(2*i + 1)));  // Impar -> impar;
@@ -171,6 +170,8 @@ int main() {
     wanRouters.Add(oc192.Install(routers.Get(7), routers.Get(8)));  // Cabeamento do roteador 7 -> 8
     wanRouters.Add(oc48.Install(routers.Get(7), routers.Get(10)));  // Cabeamento do roteador 7 -> 10
 
+    wanRouters.Add(oc12.Install(routers.Get(9), routers.Get(11)));  // Roteador de borda Rede B -> Roteador de nucleo 11
+
     oc12.EnablePcapAll(outputFolder+"pcap", true);  // Output dos enlaces de fibra otica para pcap
     oc48.EnablePcapAll(outputFolder+"pcap", true);
     oc192.EnablePcapAll(outputFolder+"pcap", true);
@@ -181,49 +182,44 @@ int main() {
 
     address.SetBase("193.1.17.0", "255.255.248.0"); // Endereco base e mascara de sub-rede dos roteadores (WAN e borda)
     interfaces = address.Assign(wanRouters);        // Processo de enderecamento dos roteadores (WAN e borda)
-    address.NewNetwork();                           // Reseta o parametro address para que possa ser utilizado novamente
+    // address.NewNetwork();    // Reseta o parametro address para que possa ser utilizado novamente
 
     // Enderecamento da Rede A
-    NS_LOG_INFO("Laco de cabeamento dos dispositivos da Rede A.");
+    NS_LOG_INFO("Laco de cabeamento e enderecamento dos dispositivos da Rede A.");
     NetDeviceContainer subNetA;    // Container para a Rede A
 
-    // Laco de cabeamento hosts -> switches -> roteador da Rede A
+    // Laco para cabeamento hosts -> switches -> roteador e enderecamento da Rede A
+    address.SetBase("193.1.17.32", "255.255.255.0");    // Endereco base e mascara de sub-rede da Rede A
     for(int i = 0; i < subnetsLANA.size(); i++){
+        // "Cabeamento" switches -> roteador
+        subNetA.Add(etherCat6A.Install(switchA.Get(i), routers.Get(0)));
 
         // "Cabeamento" hosts -> switch em cada subrede
         for(int j = 0; j < 25; j++)
             subNetA.Add((etherCat6A.Install(subnetsLANA[i]->Get(j), switchA.Get(i))).Get(0));
 
-        // "Cabeamento" switches -> roteador
-        subNetA.Add(etherCat6A.Install(switchA.Get(i), routers.Get(0)));
+        interfaces = address.Assign(subNetA);   // Processo de enderecamento da Rede A
+        address.NewNetwork();                   // Define o parametro address para a proxima sub-rede
     }
-    NS_LOG_INFO("Enderecamento da Rede A.");
-    address.SetBase("193.1.17.32", "255.255.255.0");    // Endereco base e mascara de sub-rede da Rede A
-    interfaces = address.Assign(subNetA);               // Processo de enderecamento da Rede A
-
-    address.NewNetwork();                           // Reseta o parametro address para que possa ser utilizado novamente
 
     // Enderecamento da Rede B
-    NS_LOG_INFO("Laco de cabeamento da Rede B.");
+    NS_LOG_INFO("Laco de cabeamento e enderecamento dos dispositivos da Rede B.");
     NetDeviceContainer subNetB;         // Container para os dispositivos da Rede B
 
-    // Laco de cabeamento hosts -> switches -> roteador da Rede A
+    // Laco de cabeamento hosts -> switches -> roteador e enderecamento da Rede B
+    address.SetBase("193.1.28.32", "255.255.255.0");    // Definicao do endereco base e mascara de sub-rede da Rede B
     for(int i = 0; i < subnetsLANB.size(); i++){
+
+        // "Cabeamento" switches -> roteador
+        subNetB.Add(etherCat6.Install(switchB.Get(i), routers.Get(11)));
 
         // "Cabeamento" hosts -> switch em cada subrede
         for(int j = 0; j < 25; j++)
             subNetB.Add((etherCat5.Install(subnetsLANB[i]->Get(j), switchB.Get(i))).Get(0));
 
-        // "Cabeamento" switches -> roteador
-        subNetB.Add(etherCat6.Install(switchB.Get(i), routers.Get(11))); // 11?
+        interfaces = address.Assign(subNetB);   // Processo de enderecamento da Rede B
+        address.NewNetwork();                   // Define o parametro address para a proxima sub-rede
     }
-    
-    NS_LOG_INFO("Enderecamento da Rede B.");
-    address.SetBase("193.1.28.32", "255.255.255.0");    // Definicao do endereco base e mascara de sub-rede da Rede B
-    interfaces = address.Assign(subNetB);               // Processo de enderecamento da Rede B
-    address.NewNetwork();                           // Reseta o parametro address para que possa ser utilizado novamente
-
-
 
     etherCat5.EnablePcapAll(outputFolder+"pcap", true);     // Output dos enlaces Ethernet para pcap
     etherCat6.EnablePcapAll(outputFolder+"pcap", true);
