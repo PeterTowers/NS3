@@ -124,6 +124,7 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 
+output/
 
 # End of https://www.gitignore.io/api/c++,clion
 
